@@ -54,10 +54,10 @@ def train(args, model, train_loader, optimizer, epoch):
     criterion_semantic = LossSemantic()  # 语义损失
 
     for batch_idx, sample in enumerate(train_loader):
-        # 将数据移至GPU
-        audio, visual_posi, visual_nega, target, question, items = sample['audio'].to('cuda'), sample['visual_posi'].to(
-            'cuda'), sample['visual_nega'].to('cuda'), sample['label'].to('cuda'), sample['question'].to('cuda'), \
-            sample["items"].to("cuda")
+        # 将数据移至CPU
+        audio, visual_posi, visual_nega, target, question, items = sample['audio'].to('cpu'), sample['visual_posi'].to(
+            'cpu'), sample['visual_nega'].to('cpu'), sample['label'].to('cpu'), sample['question'].to('cpu'), \
+            sample["items"].to("cpu")
 
         # 清除梯度
         optimizer.zero_grad()
@@ -113,9 +113,9 @@ def eval(model, val_loader, epoch):
     correct_qa = 0
     with torch.no_grad():
         for _, sample in enumerate(val_loader):
-            audio, visual_posi, visual_nega, target, question, _ = sample['audio'].to('cuda'), sample['visual_posi'].to(
-                'cuda'), sample['visual_nega'].to('cuda'), sample['label'].to('cuda'), sample['question'].to('cuda'), \
-            sample["items"].to("cuda")
+            audio, visual_posi, visual_nega, target, question, _ = sample['audio'].to('cpu'), sample['visual_posi'].to(
+                'cpu'), sample['visual_nega'].to('cpu'), sample['label'].to('cpu'), sample['question'].to('cpu'), \
+            sample["items"].to("cpu")
 
             out_qa, _, _, _, _, _, _ = model(
                 audio, visual_posi, visual_nega, question)
@@ -146,10 +146,10 @@ def test(model, val_loader):
     AV_temp = []
     with torch.no_grad():
         for batch_idx, sample in enumerate(val_loader):
-            audio, visual_posi, visual_nega, target, question, items = sample['audio'].to('cuda'), sample[
+            audio, visual_posi, visual_nega, target, question, items = sample['audio'].to('cpu'), sample[
                 'visual_posi'].to(
-                'cuda'), sample['visual_nega'].to('cuda'), sample['label'].to('cuda'), sample['question'].to('cuda'), \
-            sample["items"].to("cuda")
+                'cpu'), sample['visual_nega'].to('cpu'), sample['label'].to('cpu'), sample['question'].to('cpu'), \
+            sample["items"].to("cpu")
 
             preds_qa, _, _, _, _, _, _ = model(
                 audio, visual_posi, visual_nega, question)
@@ -235,9 +235,9 @@ def main():
     parser.add_argument(
         "--label_visualization", type=str, default="./data/json/avqa-val_real.json", help="visualization csv file")
     parser.add_argument(
-        '--batch-size', type=int, default=16, metavar='N', help='input batch size for training (default: 16)')
+        '--batch-size', type=int, default=1, metavar='N', help='input batch size for training (default: 1)')
     parser.add_argument(
-        "--epochs", type=int, default=80, metavar="N", help="number of epochs to train (default: 60)")
+        "--epochs", type=int, default=2, metavar="N", help="number of epochs to train (default: 2)")
     parser.add_argument(
         "--lr", type=float, default=1e-4, metavar="LR", help="learning rate (default: 3e-4)")
     parser.add_argument(
@@ -260,7 +260,8 @@ def main():
     )
 
     args = parser.parse_args()
-    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    # 注释掉GPU相关的环境变量设置
+    # os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -270,7 +271,7 @@ def main():
 
     if args.model == 'sasr_net':
         model = SaSR_Net()
-        model = model.to('cuda')
+        model = model.to('cpu')  # 将模型移到CPU
         # model = nn.DataParallel(model)
     else:
         raise ('not recognized')
@@ -298,7 +299,7 @@ def main():
         pretrained_path = args.pretrained_path
         if pretrained_path and os.path.exists(pretrained_path):
             try:
-                checkpoint = torch.load(pretrained_path)
+                checkpoint = torch.load(pretrained_path, map_location=torch.device('cpu'))  # 加载到CPU
             except:
                 checkpoint = {}
         else:
@@ -344,7 +345,7 @@ def main():
         test_loader = DataLoader(
             test_dataset, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
         model.load_state_dict(torch.load(
-            os.path.join(args.model_save_dir, args.checkpoint + ".pt")))
+            os.path.join(args.model_save_dir, args.checkpoint + ".pt"), map_location=torch.device('cpu')))  # 加载到CPU
         test(model, test_loader)
 
 
